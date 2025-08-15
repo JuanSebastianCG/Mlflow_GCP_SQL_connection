@@ -1,0 +1,99 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Entornos virtuales
+.env
+.env
+.env.local
+.venv
+env/
+venv/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Archivos de configuración local (pueden contener credenciales)
+.env
+
+# Archivos de logs
+*.log
+logs/
+
+# MLflow
+mlruns/
+mlartifacts/
+outputs/
+mlflow-data/
+
+# Archivos de credenciales de GCP
+**/credentials*.json
+*.json.key
+
+# Archivos de base de datos
+*.db
+*.sqlite3
+
+# Archivos temporales
+*.temp
+*.tmp
+.DS_Store
+temp/
+tmp/
+
+# Archivos de IDE/editores
+.idea/
+#.vscode/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Archivos específicos del proyecto que no deben versionarse
+local_settings.py
+local_config.py
+
+# Archivos de caché y pruebas
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+#.cursor/
+
+# Archivos específicos para el sistema operativo
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+#.cursorignore
+
+# Linux
+.directory 
