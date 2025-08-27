@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*
 """
 MLflow Service - Main Entry Point
 
@@ -76,7 +76,6 @@ def log_subprocess_output(pipe, log_level):
 
 def setup_signal_handlers():
     """Configura los manejadores de señales para terminación limpia."""
-    
     def handle_termination(sig, frame):
         """Manejador de señales para terminar limpiamente."""
         global mlflow_process
@@ -184,17 +183,26 @@ def upgrade_database_schema() -> bool:
     
     try:
         backend_store_uri = settings.backend_store_uri
-        cmd = ['mlflow', 'db', 'upgrade', backend_store_uri]
-        
+        tracking_uri = settings.mlflow_tracking_uri
+
+        # Set environment variables for the subprocess to ensure Alembic finds the correct URIs
+        backend_store_uri = settings.backend_store_uri
+
+        # Set MLFLOW_HOME for the subprocess to ensure MLflow finds its internal resources
+        env = os.environ.copy()
+        env['MLFLOW_HOME'] = project_root
+
+        cmd = [sys.executable, '-m', 'mlflow', 'db', 'upgrade', backend_store_uri]
+
         process = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
             check=True,
             encoding='utf-8',
-            errors='replace'
+            errors='replace',
+            env=env # Pass the modified environment variables
         )
-        
         stdout = process.stdout.lower()
         if "upgraded successfully" in stdout:
             logger.info("✅ Esquema de la base de datos actualizado exitosamente.")
@@ -217,7 +225,6 @@ def upgrade_database_schema() -> bool:
     except Exception as e:
         logger.error(f"❌ Error inesperado durante la actualización del esquema: {e}")
         return False
-
 def start_mlflow_server() -> bool:
     """
     Inicia el servidor MLflow.
@@ -349,4 +356,4 @@ def main():
 
 if __name__ == '__main__':
 
-    main() 
+    main()

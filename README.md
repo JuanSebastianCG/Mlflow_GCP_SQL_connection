@@ -64,6 +64,50 @@ mlflow-service/
    GOOGLE_APPLICATION_CREDENTIALS=/app/credentials/gcp-credentials.json
    ```
 
+### Autenticación sin archivo de credenciales (Usuario/Contraseña)
+
+Si no deseas usar un archivo de credenciales para la autenticación de GCP, puedes configurar las variables de entorno directamente con tu usuario y contraseña de la siguiente manera:
+
+```env
+# GCP Configuration (Autenticación con usuario/contraseña)
+# Asegúrate de que tu cuenta de servicio tenga los roles necesarios (e.g., Storage Admin, BigQuery Data Editor)
+# para acceder a los recursos de GCP.
+# NOTA: Esta forma de autenticación es menos segura que el uso de un archivo de credenciales
+# y solo debe usarse en entornos de desarrollo o pruebas.
+
+GCP_PROJECT=tu-proyecto-gcp
+GOOGLE_APPLICATION_CREDENTIALS_TYPE=service_account
+GOOGLE_APPLICATION_CREDENTIALS_PROJECT_ID=tu-proyecto-gcp
+GOOGLE_APPLICATION_CREDENTIALS_PRIVATE_KEY_ID=tu-private-key-id
+GOOGLE_APPLICATION_CREDENTIALS_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nTU_PRIVATE_KEY_AQUI\n-----END PRIVATE KEY-----"
+GOOGLE_APPLICATION_CREDENTIALS_CLIENT_EMAIL=tu-cuenta-servicio@tu-proyecto-gcp.iam.gserviceaccount.com
+GOOGLE_APPLICATION_CREDENTIALS_CLIENT_ID=tu-client-id
+GOOGLE_APPLICATION_CREDENTIALS_AUTH_URI=https://accounts.google.com/o/oauth2/auth
+GOOGLE_APPLICATION_CREDENTIALS_TOKEN_URI=https://oauth2.googleapis.com/token
+GOOGLE_APPLICATION_CREDENTIALS_AUTH_PROVIDER_X509_CERT_URL=https://www.googleapis.com/oauth2/v1/certs
+GOOGLE_APPLICATION_CREDENTIALS_CLIENT_X509_CERT_URL=https://www.googleapis.com/robot/v1/metadata/x509/tu-cuenta-servicio%40tu-proyecto-gcp.iam.gserviceaccount.com
+```
+
+**Importante**: Para la conexión a la base de datos PostgreSQL, las credenciales ya se manejan a través de las variables `POSTGRES_USER` y `POSTGRES_PASSWORD` en el archivo `.env`.
+
+### Autenticación con `gcloud auth login`
+
+Si estás ejecutando la aplicación localmente y tienes los permisos adecuados en tu cuenta de Google Cloud, puedes autenticarte utilizando el comando `gcloud auth login` y configurando el proyecto por defecto. Esto permite que la aplicación utilice tus credenciales de usuario para acceder a los servicios de GCP (como Google Cloud Storage).
+
+1.  **Inicia sesión en gcloud:**
+    ```bash
+    gcloud auth login
+    ```
+
+2.  **Configura tu proyecto de GCP (si no lo has hecho ya):**
+    ```bash
+    gcloud config set project tu-proyecto-gcp
+    ```
+
+    Asegúrate de que `tu-proyecto-gcp` coincida con el `GCP_PROJECT` configurado en tu archivo `.env`.
+
+Con estos pasos, la aplicación debería poder autenticarse automáticamente con tus credenciales de usuario de GCP.
+
 ## 🚀 Ejecución
 
 ### Con Docker Compose (Recomendado)

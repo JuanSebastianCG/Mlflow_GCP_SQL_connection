@@ -10,6 +10,7 @@ import logging
 import tempfile
 import time
 from typing import Optional, Dict, Any
+import google.auth
 from google.cloud import secretmanager
 from src.config.settings import settings
 
@@ -32,7 +33,7 @@ class GCPAuthManager:
         if creds_path_env and not os.path.exists(creds_path_env):
             logger.warning(
                 f"⚠️ La ruta de GOOGLE_APPLICATION_CREDENTIALS ('{creds_path_env}') no existe. "
-                "Se intentarán otros métodos de autenticación de GCP."
+                "Se eliminará para permitir otros métodos de autenticación de GCP (como ADC)."
             )
             del os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
             # También actualizar el valor en la configuración para consistencia
@@ -60,10 +61,22 @@ class GCPAuthManager:
             if secret_creds:
                 return secret_creds
         
-        # 3. Verificar autenticación interactiva (para desarrollo)
+        # 3. Intentar autenticación con Application Default Credentials (ADC)
+        # Esto es útil para desarrollo local con `gcloud auth login`
         if self.settings.USE_GCP_INTERACTIVE_AUTH:
-            logger.info("🔄 Usando autenticación interactiva de GCP")
-            return None  # MLflow usará las credenciales por defecto
+            logger.info("🔄 Intentando autenticación con Application Default Credentials (ADC)...")
+            try:
+                credentials, project = google.auth.default()
+                logger.info(f"✅ Credenciales ADC encontradas para el proyecto: {project}")
+                # No necesitamos un archivo de credenciales aquí, ya que ADC maneja la autenticación directamente.
+                return None # Indicar que ADC fue exitoso y las credenciales están configuradas globalmente
+            except Exception as e:
+                logger.warning(f"⚠️ Fallo al obtener credenciales ADC: {e}")
+                logger.warning("Asegúrate de haber ejecutado `gcloud auth application-default login` o `gcloud auth login` y configurado el proyecto.")
+
+        # Si no se encontró ninguna credencial, registrar un error y retornar None
+        logger.error("❌ No se encontraron credenciales válidas para GCP")
+        return None
         
         logger.error("❌ No se encontraron credenciales válidas para GCP")
         return None
@@ -140,7 +153,8 @@ class GCPAuthManager:
         try:
             from google.cloud import storage
             
-            # Crear cliente de storage
+            # Crear cliente de storage. Si no se han configurado credenciales explícitas,
+            # el cliente intentará usar Application Default Credentials (ADC).
             client = storage.Client()
             logger.info(f"✅ Cliente GCS creado exitosamente")
             
@@ -179,4 +193,4 @@ class GCPAuthManager:
 
 
 # Crear instancia global
-gcp_auth_manager = GCPAuthManager() 
+gcp_auth_manager = GCPAuthManager()
