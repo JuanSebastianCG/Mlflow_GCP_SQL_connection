@@ -21,8 +21,40 @@ class GCPAuthManager:
     """Gestor de autenticación GCP para MLflow."""
     
     def __init__(self):
+        """
+        Inicializa el gestor de autenticación GCP.
+        Prioriza GOOGLE_APPLICATION_CREDENTIALS, luego Application Default Credentials.
+        """
+        self.logger = logging.getLogger(__name__)
+        self.credentials = None
+        self.project_id = None
         self.settings = settings
         self.temp_credentials_file: Optional[str] = None
+        
+        self.logger.info("🔄 Configurando acceso a GCP...")
+        self._setup_credentials()
+    
+    def _setup_credentials(self):
+        """
+        Configura las credenciales de GCP priorizando GOOGLE_APPLICATION_CREDENTIALS.
+        """
+        try:
+            # Prioridad 1: GOOGLE_APPLICATION_CREDENTIALS
+            credentials_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+            if credentials_path and os.path.exists(credentials_path):
+                self.logger.info(f"🔑 Usando credenciales desde GOOGLE_APPLICATION_CREDENTIALS: {credentials_path}")
+                self.credentials, self.project_id = google.auth.load_credentials_from_file(credentials_path)
+                self.logger.info(f"✅ Credenciales cargadas exitosamente para proyecto: {self.project_id}")
+                return
+            
+            # Prioridad 2: Application Default Credentials
+            self.logger.info("🔄 Intentando usar Application Default Credentials...")
+            self.credentials, self.project_id = google.auth.default()
+            self.logger.info(f"✅ ADC configuradas exitosamente para proyecto: {self.project_id}")
+            
+        except Exception as e:
+            self.logger.error(f"❌ Error configurando credenciales GCP: {e}")
+            raise
     
     def _ensure_valid_credentials_path(self):
         """
@@ -130,56 +162,58 @@ class GCPAuthManager:
             logger.error(f"❌ Error obteniendo credenciales de Secret Manager: {e}")
             return None
     
-    def validate_gcs_credentials(self, bucket_name: Optional[str] = None) -> bool:
+    def validate_gcs_access(self, bucket_name: str) -> bool:
         """
-        Valida las credenciales de GCS.
+        Valida el acceso al bucket de GCS usando las credenciales configuradas.
         
         Args:
             bucket_name: Nombre del bucket a validar
             
         Returns:
-            bool: True si las credenciales son válidas
+            True si el acceso es válido, False en caso contrario
         """
-        self._ensure_valid_credentials_path()
-        
-        if not bucket_name:
-            # Extraer nombre del bucket desde configuración
-            if self.settings.MLFLOW_BUCKET_LOCATION.startswith("gs://"):
-                bucket_name = self.settings.gcs_bucket_name
-            else:
-                logger.warning("⚠️ No se proporcionó nombre de bucket para validación")
-                return False
-        
+        try:
+            client = self.get_gcs_client()
+            bucket = client.bucket(bucket_name)
+            
+            # Intentar crear un objeto de prueba
+            test_blob_name = f"mlflow-test-{int(time.time())}.txt"
+            blob = bucket.blob(test_blob_name)
+            
+            # Escribir contenido de prueba
+            blob.upload_from_string("test")
+            self.logger.info(f"✅ Escritura exitosa en bucket '{bucket_name}'")
+            
+            # Leer el contenido
+            content = blob.download_as_text()
+            if content == "test":
+                self.logger.info(f"✅ Lectura exitosa desde bucket '{bucket_name}'")
+            
+            # Limpiar el objeto de prueba
+            blob.delete()
+            self.logger.info(f"✅ Validación completa del bucket '{bucket_name}'")
+            
+            return True
+                
+        except Exception as e:
+            self.logger.error(f"❌ Error validando acceso a GCS: {e}")
+            return False
+    
+    def get_gcs_client(self):
+        """Obtiene un cliente de Google Cloud Storage con las credenciales configuradas."""
         try:
             from google.cloud import storage
             
-            # Crear cliente de storage. Si no se han configurado credenciales explícitas,
-            # el cliente intentará usar Application Default Credentials (ADC).
-            client = storage.Client()
-            logger.info(f"✅ Cliente GCS creado exitosamente")
-            
-            # Verificar acceso al bucket
-            bucket = client.get_bucket(bucket_name)
-            logger.info(f"✅ Acceso al bucket '{bucket_name}' verificado")
-            
-            # Probar listado de objetos
-            blobs = list(bucket.list_blobs(max_results=1))
-            logger.info(f"✅ Permisos de lectura verificados")
-            
-            # Probar escritura con un archivo de prueba
-            test_blob_name = f"test_mlflow_auth_{int(time.time())}.txt"
-            test_blob = bucket.blob(test_blob_name)
-            test_blob.upload_from_string("Test file for MLflow authentication")
-            
-            # Eliminar archivo de prueba
-            test_blob.delete()
-            logger.info(f"✅ Permisos de escritura verificados")
-            
-            return True
-            
+            client = storage.Client(
+                credentials=self.credentials,
+                project=self.project_id
+            )
+            self.logger.info("✅ Cliente GCS creado exitosamente")
+            return client
+                
         except Exception as e:
-            logger.error(f"❌ Error validando credenciales GCS: {e}")
-            return False
+            self.logger.error(f"❌ Error creando cliente GCS: {e}")
+            raise
     
     def cleanup(self) -> None:
         """Limpia archivos temporales de credenciales."""

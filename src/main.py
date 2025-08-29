@@ -57,7 +57,6 @@ logger.addFilter(MigrationLogFilter())
 
 # Importar configuración y utilidades
 from src.config.settings import settings
-from src.utils.gcp_auth import gcp_auth_manager
 
 # Variables globales
 mlflow_process: Optional[subprocess.Popen] = None
@@ -97,11 +96,7 @@ def setup_signal_handlers():
                 logger.error(f"❌ Error terminando proceso MLflow: {e}")
         
         # Limpiar recursos
-        try:
-            gcp_auth_manager.cleanup()
-            logger.info("✅ Limpieza completada")
-        except Exception as e:
-            logger.error(f"❌ Error durante limpieza: {e}")
+        logger.info("✅ Limpieza completada")
         
         logger.info("✅ Servicio MLflow detenido completamente")
         sys.exit(0)
@@ -258,18 +253,26 @@ def start_mlflow_server() -> bool:
     
     # Configurar credenciales GCP si es necesario
     if settings.artifact_root.startswith("gs://"):
-        logger.info("🔑 Configurando credenciales GCP...")
-        gcp_auth_manager.setup_gcp_credentials()
+        logger.info("🔑 Configurando acceso GCP...")
+        from src.utils.gcp_auth import GCPAuthManager
         
-        # Validar credenciales
-        if gcp_auth_manager.validate_gcs_credentials():
-            logger.info("✅ Credenciales GCP validadas")
-        else:
-            logger.warning("⚠️ No se pudieron validar las credenciales GCP")
+        try:
+            gcp_auth = GCPAuthManager()
+            
+            # Validar acceso al bucket
+            bucket_name = settings.gcs_bucket_name
+            if gcp_auth.validate_gcs_access(bucket_name):
+                logger.info("✅ Acceso GCP configurado exitosamente")
+            else:
+                logger.error("❌ Error validando acceso GCP")
+                return False
+        except Exception as e:
+            logger.error(f"❌ Error configurando GCP: {e}")
+            return False
     
     # Construir comando MLflow
     cmd = [
-        'mlflow', 'server',
+        sys.executable, '-m', 'mlflow', 'server',
         '--backend-store-uri', backend_store_uri,
         '--default-artifact-root', settings.artifact_root,
         '--host', host,

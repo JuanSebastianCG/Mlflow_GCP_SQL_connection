@@ -17,6 +17,10 @@ class MLflowServiceSettings(BaseSettings):
     MLFLOW_TRACKING_PORT: int = Field(5001, env="MLFLOW_TRACKING_PORT")
     MLFLOW_HOST: str = Field("0.0.0.0", env="MLFLOW_HOST")
     
+    # Backend Store Configuration
+    USE_SQLITE: bool = Field(False, env="USE_SQLITE")
+    SQLITE_PATH: str = Field("./mlflow.db", env="SQLITE_PATH")
+    
     # PostgreSQL Backend Store
     POSTGRES_HOST: str = Field("localhost", env="POSTGRES_HOST")
     POSTGRES_PORT: int = Field(5432, env="POSTGRES_PORT")
@@ -50,10 +54,10 @@ class MLflowServiceSettings(BaseSettings):
     # Properties
     @property
     def backend_store_uri(self) -> str:
-        """Construye la URI de conexión a PostgreSQL."""
-        return (
-            self.MLFLOW_POSTGRES_CONNECTION_STRING
-        )
+        """Construye la URI del backend store (SQLite o PostgreSQL)."""
+        if self.USE_SQLITE:
+            return f"sqlite:///{self.SQLITE_PATH}"
+        return self.MLFLOW_POSTGRES_CONNECTION_STRING
     
     @property
     def artifact_root(self) -> str:
@@ -93,4 +97,4 @@ class MLflowServiceSettings(BaseSettings):
 
 
 # Crear instancia global
-settings = MLflowServiceSettings() 
+settings = MLflowServiceSettings()
