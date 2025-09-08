@@ -14,9 +14,7 @@ import subprocess
 import socket
 import time
 import threading
-from urllib.parse import urlparse
 from typing import Optional
-
 from dotenv import load_dotenv
 
 # Cargar variables de entorno
@@ -32,46 +30,113 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 
-class MigrationLogFilter(logging.Filter):
-    """Filtro para suprimir logs repetitivos de migración de MLflow."""
-    def filter(self, record):
-        msg = record.getMessage()
-        # Filtrar solo los mensajes que vienen del subproceso del servidor MLflow
-        if "[MLflow Server]" in msg:
-            # Palabras clave para identificar y suprimir logs de migración ruidosos
-            filter_out_keywords = [
-                "alembic.runtime.migration",
-                "mlflow.store.db.utils",
-                "Creating initial MLflow database tables",
-                "Updating database tables",
-                "Task queue depth is"
-            ]
-            # Si alguna palabra clave está en el mensaje, no lo muestres
-            if any(keyword in msg for keyword in filter_out_keywords):
-                return False
-        return True
-
 logger = logging.getLogger("mlflow_service")
-# Añadir el filtro al logger principal
-logger.addFilter(MigrationLogFilter())
 
 # Importar configuración y utilidades
 from src.config.settings import settings
 
+# Ajustar nivel de logging según configuración (p. ej., LOG_LEVEL=WARNING en producción)
+
+def _to_log_level(name: str) -> int:
+    try:
+        return getattr(logging, str(name).upper())
+    except Exception:
+        return logging.INFO
+
+_root_logger = logging.getLogger()
+_desired_level = _to_log_level(getattr(settings, "LOG_LEVEL", "INFO"))
+_root_logger.setLevel(_desired_level)
+logger.setLevel(_desired_level)
+
 # Variables globales
 mlflow_process: Optional[subprocess.Popen] = None
+# Evento global para detener el GC en segundo plano con gracia
+_gc_stop_event = threading.Event()
 
 
-def log_subprocess_output(pipe, log_level):
-    """Lee y registra la salida de un subproceso línea por línea."""
+def log_subprocess_output(pipe):
+    """Lee y registra la salida de un subproceso línea por línea, clasificando el nivel por contenido."""
     try:
         for line in iter(pipe.readline, ''):
-            logger.log(log_level, f"[MLflow Server] {line.strip()}")
+            text = line.strip()
+            lower = text.lower()
+            level = logging.INFO
+            # Clasificar el nivel en función del contenido de la línea
+            if (
+                "traceback (most recent call last):" in lower
+                or lower.startswith("error")
+                or " error " in lower
+                or "[error" in lower
+                or " critical " in lower
+                or "fatal" in lower
+            ):
+                level = logging.ERROR
+            elif lower.startswith("warning") or " warn " in lower or "[warning" in lower:
+                level = logging.WARNING
+            # Registrar con el nivel determinado
+            logger.log(level, f"[MLflow Server] {text}")
     except Exception as e:
         logger.warning(f"Error leyendo la salida del subproceso: {e}")
     finally:
         if pipe:
             pipe.close()
+
+
+def _run_mlflow_gc_loop(interval_seconds: int, older_than: str):
+    """Bucle en segundo plano que ejecuta `mlflow gc` periódicamente.
+
+    Lee la URI del backend desde settings.backend_store_uri. Si no está
+    configurada, registra advertencia y termina el bucle.
+    """
+    backend_store_uri = settings.backend_store_uri
+    if not backend_store_uri:
+        logger.warning("♻️ GC deshabilitado: backend_store_uri no configurado.")
+        return
+
+    # Construir tracking URI local para el CLI de mlflow gc
+    tracking_host = "127.0.0.1" if settings.MLFLOW_HOST in ("0.0.0.0", "::") else settings.MLFLOW_HOST
+    tracking_uri = f"http://{tracking_host}:{settings.MLFLOW_TRACKING_PORT}"
+
+    logger.info(
+        f"♻️ MLflow GC habilitado: cada {interval_seconds}s, older-than={older_than}, backend={backend_store_uri}, tracking-uri={tracking_uri}"
+    )
+
+    # Preparar entorno del subproceso (quitar MLFLOW_WORKERS en Windows por seguridad)
+    base_env = os.environ.copy()
+    if sys.platform == "win32":
+        base_env.pop('MLFLOW_WORKERS', None)
+    # Asegurar que el CLI de mlflow vea el tracking URI
+    base_env['MLFLOW_TRACKING_URI'] = tracking_uri
+
+    while not _gc_stop_event.is_set():
+        try:
+            cmd = [
+                sys.executable, '-m', 'mlflow', 'gc',
+                '--backend-store-uri', backend_store_uri,
+                '--older-than', str(older_than),
+                '--tracking-uri', tracking_uri
+            ]
+            proc = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                encoding='utf-8',
+                errors='replace',
+                env=base_env,
+                check=False
+            )
+            out = (proc.stdout or '').strip()
+            err = (proc.stderr or '').strip()
+            if out:
+                logger.info(f"[GC] {out}")
+            if err:
+                # Usa WARNING para no ensuciar con ERROR si no es crítico
+                logger.warning(f"[GC] {err}")
+        except Exception as e:
+            logger.error(f"❌ Error ejecutando GC: {e}")
+        # Esperar el siguiente ciclo con posibilidad de salida inmediata
+        _gc_stop_event.wait(interval_seconds)
+
 
 def setup_signal_handlers():
     """Configura los manejadores de señales para terminación limpia."""
@@ -79,7 +144,13 @@ def setup_signal_handlers():
         """Manejador de señales para terminar limpiamente."""
         global mlflow_process
         
-        logger.info("🛑 Recibida señal de terminación. Deteniendo servidor MLflow...")
+        logger.info("🛑 Recibida señal de terminación. Deteniendo servidor MLflow y GC...")
+
+        # Detener GC
+        try:
+            _gc_stop_event.set()
+        except Exception:
+            pass
         
         # Terminar proceso de MLflow
         if mlflow_process:
@@ -114,7 +185,11 @@ def verify_mlflow_installation() -> bool:
     """
     try:
         import mlflow
-        logger.info(f"✅ MLflow versión {mlflow.__version__} detectado")
+        import sys as _sys
+        logger.info(f"✅ MLflow versión {mlflow.__version__} detectado (módulo: {mlflow.__file__})")
+        logger.info(f"   Python ejecutable: {_sys.executable}")
+        # Para depuración avanzada, habilitar DEBUG para ver sys.path
+        logger.debug(f"   sys.path[0:3]: {_sys.path[:3]} ... (total rutas: {len(_sys.path)})")
         return True
     except ImportError:
         logger.error("❌ MLflow no está instalado")
@@ -168,58 +243,59 @@ def wait_for_mlflow_server(host: str, port: int, timeout: int = 30) -> bool:
 def upgrade_database_schema() -> bool:
     """
     Actualiza el esquema de la base de datos MLflow a la última versión.
-    Es un paso crucial para evitar errores de migración concurrentes dentro
-    del servidor MLflow, especialmente en Windows.
-    
-    Returns:
-        bool: True si la actualización fue exitosa o no fue necesaria.
+    Retorna True si la actualización fue exitosa o si no es necesaria aún.
     """
     logger.info("🔄 Verificando y actualizando el esquema de la base de datos MLflow...")
-    
+
+    backend_store_uri = settings.backend_store_uri
+    if not backend_store_uri:
+        logger.error("❌ La URI del backend store no está configurada (MLFLOW_POSTGRES_CONNECTION_STRING).")
+        return False
+
     try:
-        backend_store_uri = settings.backend_store_uri
-        tracking_uri = settings.mlflow_tracking_uri
-
-        # Set environment variables for the subprocess to ensure Alembic finds the correct URIs
-        backend_store_uri = settings.backend_store_uri
-
-        # Set MLFLOW_HOME for the subprocess to ensure MLflow finds its internal resources
-        env = os.environ.copy()
-        env['MLFLOW_HOME'] = project_root
-
         cmd = [sys.executable, '-m', 'mlflow', 'db', 'upgrade', backend_store_uri]
-
-        process = subprocess.run(
+        result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
-            check=True,
             encoding='utf-8',
             errors='replace',
-            env=env # Pass the modified environment variables
+            check=False,
+            env=os.environ.copy()
         )
-        stdout = process.stdout.lower()
-        if "upgraded successfully" in stdout:
-            logger.info("✅ Esquema de la base de datos actualizado exitosamente.")
-        elif "is up to date" in stdout or "alembic_version" in stdout:
-            logger.info("✅ El esquema de la base de datos ya está actualizado.")
-        else:
-            logger.info(f"Resultado de la actualización de la BD: {process.stdout.strip()}")
-        return True
 
-    except subprocess.CalledProcessError as e:
-        stderr_lower = e.stderr.lower()
-        if "does not exist" in stderr_lower or "OperationalError" in e.stderr:
-            logger.warning("⚠️ La base de datos parece no existir aún. Se creará al iniciar el servidor.")
+        stdout = (result.stdout or '').strip()
+        stderr = (result.stderr or '').strip()
+
+        if result.returncode == 0:
+            # Consideramos éxito si el comando terminó correctamente
+            if stdout:
+                lower = stdout.lower()
+                if "upgraded" in lower or "is up to date" in lower or "alembic_version" in lower:
+                    logger.info("✅ Esquema de la base de datos actualizado o ya al día.")
+                else:
+                    logger.info(f"Resultado de la actualización de la BD: {stdout}")
+            else:
+                logger.info("✅ Esquema de la base de datos actualizado correctamente.")
             return True
-        
+
+        # Si no fue 0, revisar mensajes comunes y decidir si continuar
+        lower_err = stderr.lower()
+        if "does not exist" in lower_err or "operationalerror" in lower_err:
+            logger.warning("⚠️ La base de datos aún no existe o no es accesible; se intentará crear/ajustar al iniciar el servidor.")
+            return True
+
         logger.error("❌ Error actualizando el esquema de la base de datos.")
-        logger.error(f"   Comando: {' '.join(e.cmd)}")
-        logger.error(f"   Salida de error:\n{e.stderr}")
+        if stdout:
+            logger.error(f"STDOUT:\n{stdout}")
+        if stderr:
+            logger.error(f"STDERR:\n{stderr}")
         return False
+
     except Exception as e:
         logger.error(f"❌ Error inesperado durante la actualización del esquema: {e}")
         return False
+
 def start_mlflow_server() -> bool:
     """
     Inicia el servidor MLflow.
@@ -304,8 +380,8 @@ def start_mlflow_server() -> bool:
         )
 
         # Iniciar hilos para leer stdout y stderr sin bloquear
-        stdout_thread = threading.Thread(target=log_subprocess_output, args=(mlflow_process.stdout, logging.INFO))
-        stderr_thread = threading.Thread(target=log_subprocess_output, args=(mlflow_process.stderr, logging.ERROR))
+        stdout_thread = threading.Thread(target=log_subprocess_output, args=(mlflow_process.stdout,))
+        stderr_thread = threading.Thread(target=log_subprocess_output, args=(mlflow_process.stderr,))
         stdout_thread.daemon = True
         stderr_thread.daemon = True
         stdout_thread.start()
@@ -339,11 +415,40 @@ def main():
     if not verify_mlflow_installation():
         sys.exit(1)
 
+    # Pre-actualizar el esquema de la base de datos antes de arrancar el servidor
+    # Esto evita errores de Alembic durante el start del server
+    if not upgrade_database_schema():
+        logger.error("❌ No fue posible actualizar el esquema de la base de datos. Abortando inicio.")
+        sys.exit(1)
+
+    # Leer configuración de GC desde variables de entorno (.env)
+    gc_enabled = os.getenv("MLFLOW_GC_ENABLED", "true").strip().lower() not in ("0", "false", "no")
+    try:
+        gc_interval = int(os.getenv("MLFLOW_GC_INTERVAL_SECONDS", "20"))
+        if gc_interval <= 0:
+            raise ValueError
+    except Exception:
+        gc_interval = 20
+    gc_older_than = os.getenv("MLFLOW_GC_OLDER_THAN", "5m").strip()
+
     # Iniciar servidor MLflow.
     # El propio comando `mlflow server` gestionará la conexión a la base de datos
     # y las migraciones. El filtro de logs se encargará de la verbosidad.
     if start_mlflow_server():
         logger.info("✅ Servicio MLflow iniciado correctamente")
+
+        # Lanzar GC en segundo plano si está habilitado
+        gc_thread = None
+        if gc_enabled:
+            gc_thread = threading.Thread(
+                target=_run_mlflow_gc_loop,
+                args=(gc_interval, gc_older_than),
+                daemon=True,
+                name="mlflow-gc-thread"
+            )
+            gc_thread.start()
+        else:
+            logger.info("♻️ MLflow GC deshabilitado por configuración (MLFLOW_GC_ENABLED=false)")
         
         try:
             # Mantener el proceso en ejecución
