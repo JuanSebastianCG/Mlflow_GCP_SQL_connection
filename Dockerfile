@@ -36,12 +36,13 @@ RUN groupadd -r mlflow && useradd -r -g mlflow mlflow
 RUN chown -R mlflow:mlflow /app
 USER mlflow
 
-# Exponer puerto MLflow
+# Exponer puerto MLflow (dinámico para Cloud Run)
 EXPOSE 5001
+EXPOSE 8080
 
-# Health check
+# Health check (usa PORT si está definido, sino 5001)
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:5001/health', timeout=10)" || exit 1
+    CMD python -c "import os, requests; port=os.getenv('PORT', '5001'); requests.get(f'http://localhost:{port}/health', timeout=10)" || exit 1
 
 # Variables de entorno por defecto para GC (pueden sobrescribirse en runtime)
 ENV MLFLOW_GC_ENABLED=true \

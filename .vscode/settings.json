@@ -1,6 +1,4 @@
 {
-  "python.defaultInterpreterPath": "./.venv/Scripts/python.exe",
-  "python.terminal.activateEnvironment": true,
   "workbench.colorCustomizations": {
     "activityBar.activeBackground": "#2f7c47",
     "activityBar.background": "#2f7c47",

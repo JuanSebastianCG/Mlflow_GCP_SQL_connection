@@ -95,7 +95,7 @@ def _run_mlflow_gc_loop(interval_seconds: int, older_than: str):
 
     # Construir tracking URI local para el CLI de mlflow gc
     tracking_host = "127.0.0.1" if settings.MLFLOW_HOST in ("0.0.0.0", "::") else settings.MLFLOW_HOST
-    tracking_uri = f"http://{tracking_host}:{settings.MLFLOW_TRACKING_PORT}"
+    tracking_uri = f"http://{tracking_host}:{settings.effective_port}"
 
     logger.info(
         f"♻️ MLflow GC habilitado: cada {interval_seconds}s, older-than={older_than}, backend={backend_store_uri}, tracking-uri={tracking_uri}"
@@ -307,7 +307,7 @@ def start_mlflow_server() -> bool:
     
     # Configurar host y puerto
     host = settings.MLFLOW_HOST
-    port = settings.MLFLOW_TRACKING_PORT
+    port = settings.effective_port
     
     logger.info(f"🚀 Iniciando servidor MLflow")
     logger.info(f"   Host: {host}")
@@ -327,30 +327,15 @@ def start_mlflow_server() -> bool:
         return False
     logger.info(f"✅ Backend store URI configurada.")
     
-    # Configurar credenciales GCP si es necesario
-    if settings.artifact_root.startswith("gs://"):
-        logger.info("🔑 Configurando acceso GCP...")
-        from src.utils.gcp_auth import GCPAuthManager
-        
-        try:
-            gcp_auth = GCPAuthManager()
-            
-            # Validar acceso al bucket
-            bucket_name = settings.gcs_bucket_name
-            if gcp_auth.validate_gcs_access(bucket_name):
-                logger.info("✅ Acceso GCP configurado exitosamente")
-            else:
-                logger.error("❌ Error validando acceso GCP")
-                return False
-        except Exception as e:
-            logger.error(f"❌ Error configurando GCP: {e}")
-            return False
+    # Nota: dejamos que el propio servidor MLflow maneje las credenciales de artefactos
+    # mediante --serve-artifacts y --artifacts-destination. No hacemos validación previa
+    # ni pruebas de escritura en GCS aquí para evitar efectos secundarios en producción.
     
-    # Construir comando MLflow
+    # Construir comando MLflow (artifacts server gestionado por el servidor)
     cmd = [
         sys.executable, '-m', 'mlflow', 'server',
         '--backend-store-uri', backend_store_uri,
-        '--default-artifact-root', settings.artifact_root,
+        '--artifacts-destination', settings.artifact_root,
         '--host', host,
         '--port', str(port),
         '--serve-artifacts'

@@ -184,3 +184,7 @@ MLFLOW_TRACKING_URI = "http://mlflow-service:5001"
 - Health check endpoint: `http://localhost:5001/health`
 - Logs estructurados
 - Métricas de contenedor Docker "# Mlflow_GCP_SQL_connection"
+
+
+C:\Users\jscardenasg.COLOMBIA\Documents\Work\code\Apps\Mlops\Mlflow-Service\.venv\Scripts\activate
+python C:\Users\jscardenasg.COLOMBIA\Documents\Work\code\Apps\Mlops\Mlflow-Service\src\main.py

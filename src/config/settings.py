@@ -17,13 +17,16 @@ class MLflowServiceSettings(BaseSettings):
     MLFLOW_TRACKING_PORT: int = Field(5001, env="MLFLOW_TRACKING_PORT")
     MLFLOW_HOST: str = Field("0.0.0.0", env="MLFLOW_HOST")
     
+    # Cloud Run compatibility - PORT variable override
+    PORT: Optional[int] = Field(None, env="PORT")
+    
     # PostgreSQL Backend Store
     POSTGRES_HOST: str = Field("localhost", env="POSTGRES_HOST")
     POSTGRES_PORT: int = Field(5432, env="POSTGRES_PORT")
     POSTGRES_DB: str = Field("mlflow", env="POSTGRES_DB")
     POSTGRES_USER: str = Field("mlflow", env="POSTGRES_USER")
     POSTGRES_PASSWORD: str = Field("mlflow_password", env="POSTGRES_PASSWORD")
-    MLFLOW_POSTGRES_CONNECTION_STRING: str = Field(env="MLFLOW_POSTGRES_CONNECTION_STRING")
+    MLFLOW_POSTGRES_CONNECTION_STRING: Optional[str] = Field(None, env="MLFLOW_POSTGRES_CONNECTION_STRING")
   
     # Artifact Storage (Google Cloud Storage)
     MLFLOW_BUCKET_LOCATION: str = Field("gs://bucket-mlflow-artifacts", env="MLFLOW_BUCKET_LOCATION")
@@ -50,8 +53,23 @@ class MLflowServiceSettings(BaseSettings):
     # Properties
     @property
     def backend_store_uri(self) -> str:
-        """Construye la URI de conexión a PostgreSQL."""
-        return self.MLFLOW_POSTGRES_CONNECTION_STRING
+        """Construye la URI de conexión a PostgreSQL.
+        
+        Prioridad:
+        1. Si MLFLOW_POSTGRES_CONNECTION_STRING existe y no está vacío, usarlo
+        2. Si no, construir manualmente con las variables individuales de PostgreSQL
+        """
+        # Verificar si existe el connection string completo
+        if self.MLFLOW_POSTGRES_CONNECTION_STRING and self.MLFLOW_POSTGRES_CONNECTION_STRING.strip():
+            # Limpiar comillas si las tiene
+            connection_string = self.MLFLOW_POSTGRES_CONNECTION_STRING.strip().strip("'\"")
+            return connection_string
+        
+        # Construir manualmente con variables individuales
+        return (
+            f"postgresql+psycopg2://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
+            f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        )
     
     @property
     def artifact_root(self) -> str:
@@ -88,6 +106,11 @@ class MLflowServiceSettings(BaseSettings):
             return "bucket-mlflow-artifacts"
         except Exception:
             return "bucket-mlflow-artifacts"
+    
+    @property
+    def effective_port(self) -> int:
+        """Retorna el puerto efectivo, priorizando PORT (Cloud Run) sobre MLFLOW_TRACKING_PORT."""
+        return self.PORT if self.PORT is not None else self.MLFLOW_TRACKING_PORT
 
 
 # Crear instancia global

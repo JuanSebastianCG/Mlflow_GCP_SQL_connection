@@ -1,0 +1,71 @@
+# cloudbuild.yaml — sms-emergia / mlops-mlflow (public Cloud Run)
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: 'E2_SMALL'
+
+substitutions:
+  _REGION: "us-central1"
+  _REPO: "deployment"
+  _IMAGE_NAME: "mlops-mlflow"
+  _PROJECT_ID: "sms-emergia"
+  _COMMIT_SHA: "${COMMIT_SHA}"
+
+images:
+  - ${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/${_IMAGE_NAME}:${_COMMIT_SHA}
+
+steps:
+  # Step 1: Build Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    id: Build
+    args:
+      - build
+      - -t
+      - ${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/${_IMAGE_NAME}:${_COMMIT_SHA}
+      - .
+
+  # Step 2: Push image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    id: Push
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/${_IMAGE_NAME}:${_COMMIT_SHA}
+
+  # Step 3: Deploy to Cloud Run (public, sin VPC privada)
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: Deploy
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        gcloud run deploy ${_IMAGE_NAME} \
+          --image ${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/${_IMAGE_NAME}:${_COMMIT_SHA} \
+          --platform managed \
+          --project ${_PROJECT_ID} \
+          --region ${_REGION} \
+          --allow-unauthenticated \
+          --memory 512Mi \
+          --cpu 1 \
+          --concurrency 80 \
+          --max-instances 1 \
+          --min-instances 0 \
+          --timeout 600 \
+          --port 8080 \
+          --set-env-vars "PORT=8080" \
+          --set-env-vars "MLFLOW_HOST=0.0.0.0" \
+          --set-env-vars "ENVIRONMENT=production" \
+          --set-env-vars "LOG_LEVEL=ERROR" \
+          --set-env-vars "LOG_FORMAT=%(asctime)s - %(name)s - %(levelname)s - %(message)s" \
+          --set-env-vars "MLFLOW_POSTGRES_CONNECTION_STRING=postgresql://neondb_owner:npg_nzXcqg7lEQ9J@ep-wispy-unit-a4uxof4l-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require" \
+          --set-env-vars "MLFLOW_BUCKET_LOCATION=gs://bucket-mlflow-artifacts" \
+          --set-env-vars "MLFLOW_FOLDER_LOCATION=mlflow-artifacts-v1" \
+          --set-env-vars "GCP_PROJECT=sms-emergia" \
+          --set-env-vars "MLFLOW_GC_ENABLED=true" \
+          --set-env-vars "MLFLOW_GC_INTERVAL_SECONDS=3600" \
+          --set-env-vars "MLFLOW_GC_OLDER_THAN=1d"
+          --set-env-vars "GOOGLE_APPLICATION_CREDENTIALS=/workspace/unused-on-cloud-run.json" \
+          # Si quieres dejar los secretos listos (aunque sea público), mantenlos: 
+          # --set-secrets "NGINX_AUTH_USERNAME_SECRET_ID=NGINX_AUTH_USERNAME_SECRET_ID_MLFLOW:latest" \
+          # --set-secrets "NGINX_AUTH_PASSWORD_SECRET_ID=NGINX_AUTH_PASSWORD_SECRET_ID_MLFLOW:latest"
+          # aun no implementado
+ 
