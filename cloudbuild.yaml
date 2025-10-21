@@ -2,7 +2,7 @@
 
 options:
   logging: CLOUD_LOGGING_ONLY
-  machineType: 'E2_SMALL'
+  machineType: 'E2_MEDIUM'
 
 substitutions:
   _REGION: "us-central1"
@@ -64,8 +64,8 @@ steps:
           --set-env-vars "MLFLOW_GC_INTERVAL_SECONDS=3600" \
           --set-env-vars "MLFLOW_GC_OLDER_THAN=1d"
           --set-env-vars "GOOGLE_APPLICATION_CREDENTIALS=/workspace/unused-on-cloud-run.json" \
-          # Si quieres dejar los secretos listos (aunque sea público), mantenlos: 
-          # --set-secrets "NGINX_AUTH_USERNAME_SECRET_ID=NGINX_AUTH_USERNAME_SECRET_ID_MLFLOW:latest" \
-          # --set-secrets "NGINX_AUTH_PASSWORD_SECRET_ID=NGINX_AUTH_PASSWORD_SECRET_ID_MLFLOW:latest"
+          # Si quieres dejar los secretos listos (aunque sea público), mantenlos:
+          --set-secrets "NGINX_AUTH_USERNAME_SECRET_ID=NGINX_AUTH_USERNAME_SECRET_ID_MLFLOW:latest" \
+          --set-secrets "NGINX_AUTH_PASSWORD_SECRET_ID=NGINX_AUTH_PASSWORD_SECRET_ID_MLFLOW:latest"
           # aun no implementado
  
