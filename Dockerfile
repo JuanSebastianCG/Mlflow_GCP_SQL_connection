@@ -38,7 +38,7 @@ USER mlflow
 
 # Exponer puerto MLflow (dinámico para Cloud Run)
 EXPOSE 5001
-EXPOSE 8080
+EXPOSE 8082
 
 # Health check (usa PORT si está definido, sino 5001)
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
