@@ -17,8 +17,9 @@ import threading
 from typing import Optional
 from dotenv import load_dotenv
 
-# Cargar variables de entorno
-load_dotenv()
+# Cargar variables de entorno solo en desarrollo local (no en Cloud Run)
+if os.getenv('ENVIRONMENT') != 'production':
+    load_dotenv()
 
 # Añadir el directorio raíz del proyecto a sys.path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -319,8 +320,6 @@ def start_mlflow_server() -> bool:
     logger.info(f"   Puerto: {port}")
     logger.info(f"   Artifact root URI: {settings.artifact_root}")
     logger.info(f"   GOOGLE_APPLICATION_CREDENTIALS (env): {os.getenv('GOOGLE_APPLICATION_CREDENTIALS')}")
-    logger.info(f"   MLFLOW_TRACKING_URI (env): {os.getenv('MLFLOW_TRACKING_URI')}")
-    logger.info(f"   MLFLOW_ARTIFACT_URI (env): {os.getenv('MLFLOW_ARTIFACT_URI')}")
     
     # Debug: Variables de entorno de PostgreSQL
     logger.info(f"🔍 DEBUG - Variables de entorno PostgreSQL:")
