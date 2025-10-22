@@ -74,10 +74,19 @@ class MLflowServiceSettings(BaseSettings):
             return connection_string
         
         # Construir manualmente con variables individuales
-        return (
-            f"postgresql+psycopg2://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
-            f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
-        )
+        # Verificar si es un Unix socket (Cloud SQL Proxy)
+        if self.POSTGRES_HOST.startswith('/cloudsql/'):
+            # Para Unix sockets, no usamos puerto en la URL
+            return (
+                f"postgresql+psycopg2://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
+                f"@/{self.POSTGRES_DB}?host={self.POSTGRES_HOST}"
+            )
+        else:
+            # Conexión TCP normal
+            return (
+                f"postgresql+psycopg2://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
+                f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+            )
     
     @property
     def artifact_root(self) -> str:

@@ -40,8 +40,6 @@ steps:
       - |
         gcloud run deploy ${_IMAGE_NAME} \
           --image ${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/${_IMAGE_NAME}:${_COMMIT_SHA} \
-          --command "python" \
-          --args "-m,src.main" \
           --platform managed \
           --project ${_PROJECT_ID} \
           --region ${_REGION} \
@@ -66,7 +64,8 @@ steps:
           --set-env-vars "MLFLOW_GC_ENABLED=true" \
           --set-env-vars "MLFLOW_GC_INTERVAL_SECONDS=3600" \
           --set-env-vars "MLFLOW_GC_OLDER_THAN=1d" \
-          --set-env-vars "POSTGRES_HOST=34.66.39.147" \
+          --add-cloudsql-instances "sms-emergia:us-central1:mlflow-db" \
+          --set-env-vars "POSTGRES_HOST=/cloudsql/sms-emergia:us-central1:mlflow-db" \
           --set-env-vars "POSTGRES_PORT=5432" \
           --set-env-vars "POSTGRES_DB=mlflow-db" \
           --set-env-vars "POSTGRES_USER=mlflow-user" \
