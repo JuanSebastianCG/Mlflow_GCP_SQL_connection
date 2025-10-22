@@ -321,6 +321,17 @@ def start_mlflow_server() -> bool:
     logger.info(f"   GOOGLE_APPLICATION_CREDENTIALS (env): {os.getenv('GOOGLE_APPLICATION_CREDENTIALS')}")
     logger.info(f"   MLFLOW_TRACKING_URI (env): {os.getenv('MLFLOW_TRACKING_URI')}")
     logger.info(f"   MLFLOW_ARTIFACT_URI (env): {os.getenv('MLFLOW_ARTIFACT_URI')}")
+    
+    # Debug: Variables de entorno de PostgreSQL
+    logger.info(f"🔍 DEBUG - Variables de entorno PostgreSQL:")
+    logger.info(f"   POSTGRES_HOST (env): {os.getenv('POSTGRES_HOST')}")
+    logger.info(f"   POSTGRES_PORT (env): {os.getenv('POSTGRES_PORT')}")
+    logger.info(f"   POSTGRES_USER (env): {os.getenv('POSTGRES_USER')}")
+    logger.info(f"   POSTGRES_DB (env): {os.getenv('POSTGRES_DB')}")
+    logger.info(f"   MLFLOW_POSTGRES_CONNECTION_STRING (env): {os.getenv('MLFLOW_POSTGRES_CONNECTION_STRING')}")
+    logger.info(f"   settings.POSTGRES_HOST: {settings.POSTGRES_HOST}")
+    logger.info(f"   settings.backend_store_uri: {settings.backend_store_uri}")
+    
     logger.info(f"   Comprobando si el puerto {port} está en uso en {host}...") # Nuevo log
     
     # Verificar que el puerto esté libre
