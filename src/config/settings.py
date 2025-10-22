@@ -12,7 +12,15 @@ import os
 
 class MLflowServiceSettings(BaseSettings):
     """Configuración específica para el servicio MLflow."""
-    
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        import logging
+        logger = logging.getLogger("mlflow_service")
+        logger.info(f"[Settings] PORT (env): {self.PORT}")
+        logger.info(f"[Settings] MLFLOW_TRACKING_PORT (default): {self.MLFLOW_TRACKING_PORT}")
+        logger.info(f"[Settings] Effective Port: {self.effective_port}")
+
     # MLflow Server Configuration
     MLFLOW_TRACKING_PORT: int = Field(5001, env="MLFLOW_TRACKING_PORT")
     MLFLOW_HOST: str = Field("0.0.0.0", env="MLFLOW_HOST")

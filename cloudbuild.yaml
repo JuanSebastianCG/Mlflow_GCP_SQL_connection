@@ -51,7 +51,7 @@ steps:
           --max-instances 2 \
           --min-instances 0 \
           --timeout 1200 \
-          --port 8082 \
+          --set-env-vars "MLFLOW_HOST=0.0.0.0" \
           --set-env-vars "ENVIRONMENT=production" \
           --set-env-vars "LOG_LEVEL=ERROR" \
           --set-env-vars "LOG_FORMAT=%(asctime)s - %(name)s - %(levelname)s - %(message)s" \

@@ -314,6 +314,7 @@ def start_mlflow_server() -> bool:
     logger.info(f"   Puerto: {port}")
     logger.info(f"   Artifact root: {settings.artifact_root}")
     logger.info(f"   Backend store: PostgreSQL")
+    logger.info(f"   Comprobando si el puerto {port} está en uso en {host}...") # Nuevo log
     
     # Verificar que el puerto esté libre
     if is_port_in_use(port, host):
