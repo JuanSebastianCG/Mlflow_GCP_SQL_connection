@@ -51,6 +51,7 @@ steps:
           --min-instances 0 \
           --timeout 600 \
           --port 8080 \
+          --service-account cloudbuild-custom@sms-emergia.iam.gserviceaccount.com \
           --set-env-vars "PORT=8080" \
           --set-env-vars "MLFLOW_HOST=0.0.0.0" \
           --set-env-vars "ENVIRONMENT=production" \
