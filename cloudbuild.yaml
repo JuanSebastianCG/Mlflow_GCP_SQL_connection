@@ -40,6 +40,8 @@ steps:
       - |
         gcloud run deploy ${_IMAGE_NAME} \
           --image ${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/${_IMAGE_NAME}:${_COMMIT_SHA} \
+          --command "python" \
+          --args "-m,src.main" \
           --platform managed \
           --project ${_PROJECT_ID} \
           --region ${_REGION} \
@@ -52,6 +54,8 @@ steps:
           --max-instances 2 \
           --min-instances 0 \
           --timeout 1200 \
+          --startup-cpu-boost \
+          --cpu-throttling \
           --set-env-vars "MLFLOW_HOST=0.0.0.0" \
           --set-env-vars "ENVIRONMENT=production" \
           --set-env-vars "LOG_LEVEL=INFO" \

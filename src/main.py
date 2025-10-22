@@ -254,6 +254,7 @@ def upgrade_database_schema() -> bool:
 
     try:
         cmd = [sys.executable, '-m', 'mlflow', 'db', 'upgrade', backend_store_uri]
+        logger.info(f"Ejecutando comando: {' '.join(cmd)}")
         result = subprocess.run(
             cmd,
             capture_output=True,
@@ -261,6 +262,7 @@ def upgrade_database_schema() -> bool:
             encoding='utf-8',
             errors='replace',
             check=False,
+            timeout=60,  # Timeout de 60 segundos
             env=os.environ.copy()
         )
 
@@ -292,6 +294,9 @@ def upgrade_database_schema() -> bool:
             logger.error(f"STDERR:\n{stderr}")
         return False
 
+    except subprocess.TimeoutExpired:
+        logger.warning("⚠️ Timeout en la actualización del esquema de la base de datos (60s). Continuando con el inicio del servidor...")
+        return True  # Continuamos, el servidor puede crear las tablas si es necesario
     except Exception as e:
         logger.error(f"❌ Error inesperado durante la actualización del esquema: {e}")
         return False
