@@ -44,6 +44,7 @@ steps:
           --project ${_PROJECT_ID} \
           --region ${_REGION} \
           --allow-unauthenticated \
+          --service-account cloudbuild-custom@sms-emergia.iam.gserviceaccount.com \
           --memory 512Mi \
           --cpu 1 \
           --concurrency 80 \
@@ -51,20 +52,22 @@ steps:
           --min-instances 0 \
           --timeout 600 \
           --port 8080 \
-          --service-account cloudbuild-custom@sms-emergia.iam.gserviceaccount.com \
           --set-env-vars "ENVIRONMENT=production" \
           --set-env-vars "LOG_LEVEL=ERROR" \
           --set-env-vars "LOG_FORMAT=%(asctime)s - %(name)s - %(levelname)s - %(message)s" \
-          --set-env-vars "MLFLOW_POSTGRES_CONNECTION_STRING=postgresql://neondb_owner:npg_nzXcqg7lEQ9J@ep-wispy-unit-a4uxof4l-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require" \
           --set-env-vars "MLFLOW_BUCKET_LOCATION=gs://bucket-mlflow-artifacts" \
           --set-env-vars "MLFLOW_FOLDER_LOCATION=mlflow-artifacts-v1" \
           --set-env-vars "GCP_PROJECT=sms-emergia" \
           --set-env-vars "MLFLOW_GC_ENABLED=true" \
           --set-env-vars "MLFLOW_GC_INTERVAL_SECONDS=3600" \
-          --set-env-vars "MLFLOW_GC_OLDER_THAN=1d"
-          --set-env-vars "GOOGLE_APPLICATION_CREDENTIALS=/workspace/unused-on-cloud-run.json" \
-          # Si quieres dejar los secretos listos (aunque sea público), mantenlos:
+          --set-env-vars "MLFLOW_GC_OLDER_THAN=1d" \
+          --set-env-vars "POSTGRES_HOST=34.66.39.147" \
+          --set-env-vars "POSTGRES_PORT=5432" \
+          --set-env-vars "POSTGRES_DB=mlflow-db" \
+          --set-env-vars "POSTGRES_USER=mlflow-user" \
+          --set-secrets "POSTGRES_PASSWORD=MLFLOW_DB_PASSWORD:latest"
+          # (Opcional) Solo si tu contenedor necesita esta variable por compatibilidad:
+          # --set-env-vars "GOOGLE_APPLICATION_CREDENTIALS=/workspace/unused-on-cloud-run.json"
+          # (Opcional) Si luego activas auth por Nginx:
           # --set-secrets "NGINX_AUTH_USERNAME_SECRET_ID=NGINX_AUTH_USERNAME_SECRET_ID_MLFLOW:latest" \
           # --set-secrets "NGINX_AUTH_PASSWORD_SECRET_ID=NGINX_AUTH_PASSWORD_SECRET_ID_MLFLOW:latest"
-          # aun no implementado
- 
