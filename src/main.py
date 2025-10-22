@@ -312,7 +312,6 @@ def start_mlflow_server() -> bool:
     logger.info(f"🚀 Iniciando servidor MLflow")
     logger.info(f"   Host: {host}")
     logger.info(f"   Puerto: {port}")
-    logger.info(f"   Backend store URI: {backend_store_uri}")
     logger.info(f"   Artifact root URI: {settings.artifact_root}")
     logger.info(f"   GOOGLE_APPLICATION_CREDENTIALS (env): {os.getenv("GOOGLE_APPLICATION_CREDENTIALS")}")
     logger.info(f"   MLFLOW_TRACKING_URI (env): {os.getenv("MLFLOW_TRACKING_URI")}")
