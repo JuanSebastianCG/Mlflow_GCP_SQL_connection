@@ -40,9 +40,9 @@ USER mlflow
 EXPOSE 5001
 EXPOSE 8082
 
-# Health check (usa PORT si está definido, sino 5001)
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD python -c "import os, requests; port=os.getenv('PORT', '5001'); requests.get(f'http://localhost:{port}/health', timeout=10)" || exit 1
+# Health check comentado temporalmente para depuración
+# HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+#     CMD python -c "import os, requests; port=os.getenv('PORT', '5001'); requests.get(f'http://localhost:{port}/health', timeout=10)" || exit 1
 
 # Variables de entorno por defecto para GC (pueden sobrescribirse en runtime)
 ENV MLFLOW_GC_ENABLED=true \

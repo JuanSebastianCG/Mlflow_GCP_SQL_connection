@@ -28,20 +28,20 @@ class MLflowServiceSettings(BaseSettings):
     # Cloud Run compatibility - PORT variable override
     PORT: Optional[int] = Field(None, env="PORT")
     
-    # PostgreSQL Backend Store
-    POSTGRES_HOST: str = Field("localhost", env="POSTGRES_HOST")
-    POSTGRES_PORT: int = Field(5432, env="POSTGRES_PORT")
-    POSTGRES_DB: str = Field("mlflow", env="POSTGRES_DB")
-    POSTGRES_USER: str = Field("mlflow", env="POSTGRES_USER")
-    POSTGRES_PASSWORD: str = Field("mlflow_password", env="POSTGRES_PASSWORD")
+    # PostgreSQL Backend Store (sin fallbacks - debe estar configurado)
+    POSTGRES_HOST: str = Field(..., env="POSTGRES_HOST")
+    POSTGRES_PORT: int = Field(..., env="POSTGRES_PORT")
+    POSTGRES_DB: str = Field(..., env="POSTGRES_DB")
+    POSTGRES_USER: str = Field(..., env="POSTGRES_USER")
+    POSTGRES_PASSWORD: str = Field(..., env="POSTGRES_PASSWORD")
     MLFLOW_POSTGRES_CONNECTION_STRING: Optional[str] = Field(None, env="MLFLOW_POSTGRES_CONNECTION_STRING")
   
-    # Artifact Storage (Google Cloud Storage)
-    MLFLOW_BUCKET_LOCATION: str = Field("gs://bucket-mlflow-artifacts", env="MLFLOW_BUCKET_LOCATION")
+    # Artifact Storage (Google Cloud Storage) (sin fallbacks - debe estar configurado)
+    MLFLOW_BUCKET_LOCATION: str = Field(..., env="MLFLOW_BUCKET_LOCATION")
     MLFLOW_FOLDER_LOCATION: str = Field("mlflow-artifacts-v1", env="MLFLOW_FOLDER_LOCATION")
     
-    # GCP Configuration
-    GCP_PROJECT: str = Field("dev-project", env="GCP_PROJECT")
+    # GCP Configuration (sin fallbacks - debe estar configurado)
+    GCP_PROJECT: str = Field(..., env="GCP_PROJECT")
     GOOGLE_APPLICATION_CREDENTIALS: Optional[str] = Field(None, env="GOOGLE_APPLICATION_CREDENTIALS")
     USE_GCP_INTERACTIVE_AUTH: bool = Field(False, env="USE_GCP_INTERACTIVE_AUTH")
     
@@ -107,13 +107,14 @@ class MLflowServiceSettings(BaseSettings):
     @property
     def gcs_bucket_name(self) -> str:
         """Extract bucket name from MLflow bucket location."""
-        try:
-            if self.MLFLOW_BUCKET_LOCATION.startswith('gs://'):
-                parts = self.MLFLOW_BUCKET_LOCATION[5:].split('/', 1)
-                return parts[0]
-            return "bucket-mlflow-artifacts"
-        except Exception:
-            return "bucket-mlflow-artifacts"
+        if not self.MLFLOW_BUCKET_LOCATION.startswith('gs://'):
+            raise ValueError(f"MLFLOW_BUCKET_LOCATION debe comenzar con 'gs://': {self.MLFLOW_BUCKET_LOCATION}")
+        
+        parts = self.MLFLOW_BUCKET_LOCATION[5:].split('/', 1)
+        if not parts[0]:
+            raise ValueError(f"No se pudo extraer el nombre del bucket de: {self.MLFLOW_BUCKET_LOCATION}")
+        
+        return parts[0]
     
     @property
     def effective_port(self) -> int:
