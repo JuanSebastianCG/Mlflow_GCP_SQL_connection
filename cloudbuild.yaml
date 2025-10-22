@@ -48,10 +48,16 @@ steps:
           --memory 512Mi \
           --cpu 1 \
           --concurrency 80 \
-          --max-instances 1 \
+          --max-instances 2 \
           --min-instances 0 \
-          --timeout 600 \
+          --timeout 1200 \
           --port 8080 \
+          --command=bash \
+          --args=-ceu \
+          --args="mlflow server \
+            --artifacts-destination \"${MLFLOW_BUCKET_LOCATION}/${MLFLOW_FOLDER_LOCATION}\" \
+            --host 0.0.0.0 \
+            --port \${PORT:-8080}" \
           --set-env-vars "ENVIRONMENT=production" \
           --set-env-vars "LOG_LEVEL=ERROR" \
           --set-env-vars "LOG_FORMAT=%(asctime)s - %(name)s - %(levelname)s - %(message)s" \
@@ -66,8 +72,3 @@ steps:
           --set-env-vars "POSTGRES_DB=mlflow-db" \
           --set-env-vars "POSTGRES_USER=mlflow-user" \
           --set-secrets "POSTGRES_PASSWORD=MLFLOW_DB_PASSWORD:latest"
-          # (Opcional) Solo si tu contenedor necesita esta variable por compatibilidad:
-          # --set-env-vars "GOOGLE_APPLICATION_CREDENTIALS=/workspace/unused-on-cloud-run.json"
-          # (Opcional) Si luego activas auth por Nginx:
-          # --set-secrets "NGINX_AUTH_USERNAME_SECRET_ID=NGINX_AUTH_USERNAME_SECRET_ID_MLFLOW:latest" \
-          # --set-secrets "NGINX_AUTH_PASSWORD_SECRET_ID=NGINX_AUTH_PASSWORD_SECRET_ID_MLFLOW:latest"
