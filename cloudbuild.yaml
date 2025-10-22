@@ -43,6 +43,7 @@ steps:
           --platform managed \
           --project ${_PROJECT_ID} \
           --region ${_REGION} \
+          --port 8080 \
           --allow-unauthenticated \
           --service-account cloudbuild-custom@sms-emergia.iam.gserviceaccount.com \
           --memory 512Mi \
