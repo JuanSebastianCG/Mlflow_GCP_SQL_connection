@@ -46,7 +46,7 @@ steps:
           --port 8080 \
           --allow-unauthenticated \
           --service-account cloudbuild-custom@sms-emergia.iam.gserviceaccount.com \
-          --memory 512Mi \
+          --memory 1Gi \
           --cpu 1 \
           --concurrency 80 \
           --max-instances 2 \
