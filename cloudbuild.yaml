@@ -69,6 +69,4 @@ steps:
           --set-env-vars "POSTGRES_PORT=5432" \
           --set-env-vars "POSTGRES_DB=mlflow-db" \
           --set-env-vars "POSTGRES_USER=mlflow-user" \
-          --set-secrets "POSTGRES_PASSWORD=MLFLOW_DB_PASSWORD:latest" \
-          --command "python" \
-          --args "-m,src.main"
+          --set-secrets "POSTGRES_PASSWORD=MLFLOW_DB_PASSWORD:latest"
