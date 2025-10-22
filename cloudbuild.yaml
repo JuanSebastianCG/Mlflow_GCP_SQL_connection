@@ -52,8 +52,6 @@ steps:
           --timeout 600 \
           --port 8080 \
           --service-account cloudbuild-custom@sms-emergia.iam.gserviceaccount.com \
-          --set-env-vars "PORT=8080" \
-          --set-env-vars "MLFLOW_HOST=0.0.0.0" \
           --set-env-vars "ENVIRONMENT=production" \
           --set-env-vars "LOG_LEVEL=ERROR" \
           --set-env-vars "LOG_FORMAT=%(asctime)s - %(name)s - %(levelname)s - %(message)s" \
@@ -66,7 +64,7 @@ steps:
           --set-env-vars "MLFLOW_GC_OLDER_THAN=1d"
           --set-env-vars "GOOGLE_APPLICATION_CREDENTIALS=/workspace/unused-on-cloud-run.json" \
           # Si quieres dejar los secretos listos (aunque sea público), mantenlos:
-          --set-secrets "NGINX_AUTH_USERNAME_SECRET_ID=NGINX_AUTH_USERNAME_SECRET_ID_MLFLOW:latest" \
-          --set-secrets "NGINX_AUTH_PASSWORD_SECRET_ID=NGINX_AUTH_PASSWORD_SECRET_ID_MLFLOW:latest"
+          # --set-secrets "NGINX_AUTH_USERNAME_SECRET_ID=NGINX_AUTH_USERNAME_SECRET_ID_MLFLOW:latest" \
+          # --set-secrets "NGINX_AUTH_PASSWORD_SECRET_ID=NGINX_AUTH_PASSWORD_SECRET_ID_MLFLOW:latest"
           # aun no implementado
  
