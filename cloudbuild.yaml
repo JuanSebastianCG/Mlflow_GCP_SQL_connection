@@ -46,12 +46,14 @@ steps:
           --port 8080 \
           --allow-unauthenticated \
           --service-account cloudbuild-custom@sms-emergia.iam.gserviceaccount.com \
-          --memory 1Gi \
-          --cpu 1 \
-          --concurrency 80 \
-          --max-instances 2 \
-          --min-instances 0 \
+          --memory 2Gi \
+          --cpu 2 \
+          --concurrency 50 \
+          --max-instances 5 \
+          --min-instances 1 \
           --timeout 1200 \
+          --max-instance-request-concurrency 50 \
+          --max-requests-per-container 1000 \
           --startup-cpu-boost \
           --cpu-throttling \
           --set-env-vars "MLFLOW_HOST=0.0.0.0" \
@@ -69,4 +71,7 @@ steps:
           --set-env-vars "POSTGRES_PORT=5432" \
           --set-env-vars "POSTGRES_DB=mlflow-db" \
           --set-env-vars "POSTGRES_USER=mlflow-user" \
-          --set-secrets "POSTGRES_PASSWORD=MLFLOW_DB_PASSWORD:latest"
+          --set-secrets "POSTGRES_PASSWORD=MLFLOW_DB_PASSWORD:latest" \
+          --set-env-vars "MLFLOW_ARTIFACT_UPLOAD_MAX_SIZE=500MB" \
+          --set-env-vars "MLFLOW_REQUEST_TIMEOUT=300" \
+          --max-request-body-size 500MB
