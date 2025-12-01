@@ -51,7 +51,7 @@ steps:
           --concurrency 80 \
           --max-instances 2 \
           --min-instances 0 \
-          --timeout 1200 \
+          --timeout 3600 \
 
           --cpu-throttling \
           --set-env-vars "MLFLOW_HOST=0.0.0.0" \

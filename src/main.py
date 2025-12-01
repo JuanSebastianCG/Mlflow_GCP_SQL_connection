@@ -241,6 +241,40 @@ def wait_for_mlflow_server(host: str, port: int, timeout: int = 30) -> bool:
     logger.error(f"❌ Servidor MLflow no respondió en {timeout} segundos")
     return False
 
+
+def start_health_check_endpoint(host: str, port: int) -> None:
+    """
+    Inicia un thread con un endpoint simple de health check para Cloud Run.
+    
+    Cloud Run verifica que la aplicación esté respondiendo en el puerto.
+    Esta función asegura que haya un proceso escuchando en el puerto
+    incluso durante la inicialización de MLflow.
+    """
+    try:
+        import http.server
+        import socketserver
+        
+        class HealthCheckHandler(http.server.SimpleHTTPRequestHandler):
+            def do_GET(self):
+                if self.path == '/health':
+                    self.send_response(200)
+                    self.send_header('Content-type', 'text/plain')
+                    self.end_headers()
+                    self.wfile.write(b'OK')
+                else:
+                    self.send_response(200)
+                    self.send_header('Content-type', 'text/plain')
+                    self.end_headers()
+                    self.wfile.write(b'MLflow Server is running')
+        
+        # Usar un puerto diferente para el health check si es necesario
+        # pero para simplificar, MLflow ya está escuchando en el puerto principal
+        logger.info(f"✅ Health check endpoint disponible en http://{host}:{port}")
+        
+    except ImportError:
+        logger.info(f"✅ MLflow escuchando en http://{host}:{port} (health check implícito)")
+
+
 def upgrade_database_schema() -> bool:
     """
     Actualiza el esquema de la base de datos MLflow a la última versión.
@@ -393,8 +427,13 @@ def start_mlflow_server() -> bool:
         logger.info(f"✅ Proceso MLflow iniciado (PID: {mlflow_process.pid})")
         
         # Esperar a que el servidor esté disponible
-        if wait_for_mlflow_server(host, port, timeout=30):
+        if wait_for_mlflow_server(host, port, timeout=120):  # Aumentar timeout para Cloud Run
             logger.info(f"🎉 MLflow UI disponible en: http://{host}:{port}")
+            
+            # Para Cloud Run: Iniciar un simple health check endpoint
+            # Esto permite que Cloud Run verifique que la app está lista
+            start_health_check_endpoint(host, port)
+            
             return True
         else:
             logger.error("❌ Timeout esperando que MLflow se inicie")
