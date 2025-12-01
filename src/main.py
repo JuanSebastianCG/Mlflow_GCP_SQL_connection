@@ -448,6 +448,18 @@ def start_mlflow_server() -> bool:
 
 def main():
     """Función principal del servicio MLflow."""
+    import argparse
+    
+    # Parsear argumentos de línea de comandos
+    parser = argparse.ArgumentParser(description='MLflow Service')
+    parser.add_argument('--port', type=int, help='Puerto para el servidor MLflow')
+    args = parser.parse_args()
+    
+    # Usar puerto de argumentos o configuración por defecto
+    if args.port:
+        os.environ['PORT'] = str(args.port)
+        logger.info(f"📡 Usando puerto desde argumento: {args.port}")
+    
     logger.info("🔄 Iniciando MLflow Service")
     
     # Configurar manejadores de señales

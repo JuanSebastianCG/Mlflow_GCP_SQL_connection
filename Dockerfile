@@ -36,13 +36,12 @@ RUN groupadd -r mlflow && useradd -r -g mlflow mlflow
 RUN chown -R mlflow:mlflow /app
 USER mlflow
 
-# Exponer puerto MLflow (dinámico para Cloud Run)
-EXPOSE 5001
-EXPOSE 8082
+# Exponer puerto para Cloud Run (SIEMPRE usa puerto 8080)
+EXPOSE 8080
 
-# Health check comentado temporalmente para depuración
-# HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-#     CMD python -c "import os, requests; port=os.getenv('PORT', '5001'); requests.get(f'http://localhost:{port}/health', timeout=10)" || exit 1
+# Health check para Cloud Run (verifica que la app esté respondiendo)
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+    CMD python -c "import os, requests; requests.get(f'http://localhost:8080/health', timeout=10)" || exit 1
 
 # Variables de entorno por defecto para GC (pueden sobrescribirse en runtime)
 ENV MLFLOW_GC_ENABLED=true \
@@ -52,5 +51,5 @@ ENV MLFLOW_GC_ENABLED=true \
 # ENTRYPOINT no es necesario; src.main inicia MLflow y el GC en background
 # ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
-# Comando por defecto (arranca el servidor)
-CMD ["python", "-m", "src.main"]
+# Comando por defecto (arranca el servidor en puerto 8080 para Cloud Run)
+CMD ["python", "-m", "src.main", "--port", "8080"]
