@@ -51,9 +51,7 @@ steps:
           --concurrency 80 \
           --max-instances 2 \
           --min-instances 0 \
-          --timeout 3600 \
-
-          --cpu-throttling \
+          --timeout 1200 \
           --set-env-vars "MLFLOW_HOST=0.0.0.0" \
           --set-env-vars "ENVIRONMENT=production" \
           --set-env-vars "LOG_LEVEL=INFO" \
@@ -64,8 +62,7 @@ steps:
           --set-env-vars "MLFLOW_GC_ENABLED=true" \
           --set-env-vars "MLFLOW_GC_INTERVAL_SECONDS=3600" \
           --set-env-vars "MLFLOW_GC_OLDER_THAN=1d" \
-          --add-cloudsql-instances "sms-emergia:us-central1:mlflow-db" \
-          --set-env-vars "POSTGRES_HOST=/cloudsql/sms-emergia:us-central1:mlflow-db" \
+          --set-env-vars "POSTGRES_HOST=34.66.39.147" \
           --set-env-vars "POSTGRES_PORT=5432" \
           --set-env-vars "POSTGRES_DB=mlflow-db" \
           --set-env-vars "POSTGRES_USER=mlflow-user" \
